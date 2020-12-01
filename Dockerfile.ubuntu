@@ -26,12 +26,20 @@ RUN  echo 'debconf debconf/frontend select Noninteractive' |  debconf-set-select
 	libgraphite2-dev \
 	libpng-dev \
 	pandoc-citeproc\
+        texlive-xetex\
+        texlive-latex-extra \
+        texlive-fonts-extra \
+        texlive-bibtex-extra \
+        fontconfig \
+        lmodern \
 	pngcheck\
 	imagemagick\
         npm\
+        python3-pip\
 && apt-get clean \
 && rm -rf /var/lib/apt/lists/*
 
+RUN pip3 install --upgrade pip && pip3 install pandoc-latex-environment
 
 RUN adduser pandoc --home=/home/pandoc && \
 	chmod -R 755 /home/pandoc
