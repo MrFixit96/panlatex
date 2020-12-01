@@ -2,53 +2,57 @@ ARG base_ver=20.04
 ARG DEBIAN_FRONTEND=noninteractive
 FROM ubuntu:${base_ver} as panlatex-builder
 
-RUN apt update && apt-get -y upgrade
+RUN echo "upgrade all installed packages" \
+    && apt-get -y update \
+    && apt-get -y dist-upgrade -o Dpkg::Options::="--force-confnew"
 
 RUN apt install -y \
 	tree \
-        wget
-RUN wget https://github.com/jgm/pandoc/releases/download/2.10/pandoc-2.10-1-amd64.deb \
-&& dpkg -i pandoc-2.10-1-amd64.deb \
-&& rm -rf pandoc-2.10-1-amd64.deb
+        wget \
+        curl
 
-RUN  echo 'debconf debconf/frontend select Noninteractive' |  debconf-set-selections \
-&&  apt-get install -y -q --no-install-recommends \
-	openssl \
-        libssl1.1 \
-        libssl-dev \
-        libfontconfig1 \
-        libfontconfig-dev \
-        libicu-dev \
-	libfreetype6 \
-	libfreetype6-dev \
-        librsvg2-bin \
-	libharfbuzz-dev \
-	libgraphite2-dev \
-	libpng-dev \
-	pandoc-citeproc\
-        texlive-xetex\
-        texlive-latex-extra \
-        texlive-fonts-extra \
-        texlive-bibtex-extra \
-        fontconfig \
-        lmodern \
-	pngcheck\
-	imagemagick\
-        npm\
-        python3-pip\
-&& apt-get clean \
-&& rm -rf /var/lib/apt/lists/*
+RUN echo "installing pandoc version 2.10.1" \
+    && wget https://github.com/jgm/pandoc/releases/download/2.10/pandoc-2.10-1-amd64.deb \
+    && dpkg -i pandoc-2.10-1-amd64.deb \
+    && rm -rf pandoc-2.10-1-amd64.deb
+
+RUN echo "installing packages for pdf processing" \
+    && echo 'debconf debconf/frontend select Noninteractive' |  debconf-set-selections \
+    && apt-get -y update \
+    && apt-get install -y -q  \
+    texlive-latex-recommended \
+    texlive-xetex \
+    texlive-luatex \
+    fonts-lmodern \
+    fonts-lato \
+    fonts-open-sans \
+    lmodern \
+    python3-pip \
+    fontconfig \
+    librsvg2-bin \
+    linux-headers-generic 
 
 RUN pip3 install --upgrade pip && pip3 install pandoc-latex-environment
 
 RUN adduser pandoc --home=/home/pandoc && \
 	chmod -R 755 /home/pandoc
 
-RUN npm install -g pandoc-url2cite
+RUN echo "Install node" \
+    && curl -sL https://deb.nodesource.com/setup_15.x | bash - \
+    && apt-get install -y nodejs 
+    
+RUN echo "Installing url2cite" \
+    && npm install -g pandoc-url2cite\
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN echo "Install pandoc latex environment" \
+    && pip3 install --upgrade pip \
+    && pip3 install pandoc-latex-environment
 
 WORKDIR /data
 
-RUN printf '#!/bin/bash\n\nset -eux\n\n/usr/bin/tree .\n/usr/bin/pandoc \"$@\"' > /data/entrypoint.sh && \
+RUN printf '#!/bin/bash\n\nset -eux\n\n ln -s /Assets/ttf /usr/local/share/fonts/ttf\nfc-cache -f\n /usr/bin/tree .\n/usr/bin/pandoc \"$@\"' > /data/entrypoint.sh && \
         chmod +x /data/entrypoint.sh
 
 USER pandoc:pandoc
