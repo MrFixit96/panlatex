@@ -38,37 +38,9 @@ RUN adduser pandoc --home=/home/pandoc && \
 
 RUN npm install -g pandoc-url2cite
 
-# reuse tectonic cache from compiling tex files
-COPY ./eisvogel.latex .
-COPY ./prime-cache.tex .
-
-FROM ubuntu:18.04
-
-WORKDIR /data
-RUN  echo 'debconf debconf/frontend select Noninteractive' |  debconf-set-selections \
-&&  apt update && apt-get install -y -q --no-install-recommends \
-    tree \
-    libfontconfig1 \
-    libharfbuzz-dev \
-    libicu60 \
-    libpng-dev \
-    librsvg2-bin \
-    libssl1.1 \
-    libssl-dev \
-    openssl \
-&& apt-get clean \
-&& rm -rf /var/lib/apt/lists/*
-
-#RUN ln -s /usr/lib/x86_64-linux-gnu/libicuuc.so.66 /usr/lib/x86_64-linux-gnu/libicuuc.so.63
-
 RUN set -x && \
     groupadd -g 82 pandoc && \
     useradd -m -u 82 -g pandoc pandoc
-
-# copy pandoc binary to new image
-COPY --from=panlatex-builder /usr/bin/pandoc /usr/bin/pandoc
-COPY --from=panlatex-builder /usr/bin/node /usr/bin/node
-COPY --from=panlatex-builder /usr/local/bin/pandoc-url2cite /usr/bin/pandoc-url2cite
 
 
 RUN printf '#!/bin/bash\n\nset -eux\n\n/usr/bin/tree .\n/usr/bin/pandoc \"$@\"' > /data/entrypoint.sh && \
