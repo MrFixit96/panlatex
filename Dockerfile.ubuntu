@@ -38,6 +38,8 @@ RUN adduser pandoc --home=/home/pandoc && \
 
 RUN npm install -g pandoc-url2cite
 
+WORKDIR /data
+
 RUN printf '#!/bin/bash\n\nset -eux\n\n/usr/bin/tree .\n/usr/bin/pandoc \"$@\"' > /data/entrypoint.sh && \
         chmod +x /data/entrypoint.sh
 
