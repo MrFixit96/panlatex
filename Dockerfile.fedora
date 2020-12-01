@@ -1,0 +1,43 @@
+FROM fedora:32
+
+RUN dnf makecache
+
+RUN dnf install -y pandoc \
+	tree \
+	rust
+
+RUN dnf install -y cargo \
+	openssl openssl-devel openssl-static \
+        fontconfig-devel \
+	freetype-devel \
+	harfbuzz-devel \
+	graphite2-devel \
+	libpng-devel \
+	zlib-devel \
+	pkgconf-pkg-config \
+        gcc-c++ \
+&& dnf clean all
+
+RUN adduser pandoc && \
+	chmod -R 755 ~pandoc
+
+RUN cargo install tectonic && \ 
+    cp -rf /root/.cargo/bin/tectonic /usr/local/bin/ && \
+    chown pandoc:pandoc /usr/local/bin/tectonic
+
+RUN printf '#!/bin/bash\n\nset -eux\n\n/bin/tree .\n/usr/bin/pandoc \"$@\"' > /entrypoint.sh && \
+        chmod +x /entrypoint.sh
+
+COPY Dockerfile.fedora /Dockerfile.fedora
+WORKDIR /data
+
+USER pandoc:pandoc
+ENV PATH="~pandoc/.cargo/bin:${PATH}"
+
+# Running tectonic once to cache needed files that get downloaded at first run
+COPY ./eisvogel.latex .
+COPY ./prime-cache.tex .
+RUN /usr/local/bin/tectonic prime-cache.tex &  /usr/local/bin/tectonic eisvogel.latex || true
+
+ENTRYPOINT [ "/entrypoint.sh" ]
+CMD [ "-v" ]
