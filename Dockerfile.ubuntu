@@ -46,16 +46,31 @@ RUN echo "Installing url2cite" \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN echo "Install pandoc latex environment" \
-    && pip3 install --upgrade pip \
-    && pip3 install pandoc-latex-environment
-
 WORKDIR /data
 
-RUN printf '#!/bin/bash\n\nset -eux\n\n ln -s /Assets/ttf /usr/local/share/fonts/ttf\nfc-cache -f\n /usr/bin/tree .\n/usr/bin/pandoc \"$@\"' > /data/entrypoint.sh && \
-        chmod +x /data/entrypoint.sh
+RUN echo "Install pandoc latex environment" \
+    && pip3 install --upgrade pip \
+    && pip3 install pandoc-latex-environment \
+    && touch /entrypoint.sh \
+    && chown pandoc:pandoc /entrypoint.sh /usr/local/share/fonts
 
 USER pandoc:pandoc
 
-ENTRYPOINT [ "/usr/bin/pandoc" ]
+RUN  echo '#!/bin/bash' >/entrypoint.sh \
+     && echo 'set -eux' >>/entrypoint.sh \
+     && echo 'ln -s /Assets/ttf /usr/local/share/fonts/ttf' >>/entrypoint.sh \
+     && echo 'fc-cache -f' >>/entrypoint.sh \
+     && echo 'tree /data' >>/entrypoint.sh \
+     && echo '/usr/bin/pandoc \
+              -s --pdf-engine xelatex \
+              --template /Assets/LaTeX/eisvogel \
+              --listings -M date="`date "+%d %B %Y"`" \
+              --filter=pandoc-url2cite \
+              --filter=pandoc-citeproc \
+              --filter=pandoc-latex-environment \
+              -o ${DOCNAME}.pdf ${DOCNAME}.md' >>/entrypoint.sh \
+    && chmod +x /entrypoint.sh
+
+
+ENTRYPOINT [ "/entrypoint.sh", "$@" ]
 CMD [ "--help" ]
