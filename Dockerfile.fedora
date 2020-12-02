@@ -2,42 +2,68 @@ FROM fedora:32
 
 RUN dnf makecache
 
-RUN dnf install -y pandoc \
-	tree \
-	rust
-
-RUN dnf install -y cargo \
-	openssl openssl-devel openssl-static \
+RUN dnf install -y tree \
         fontconfig-devel \
 	freetype-devel \
 	harfbuzz-devel \
 	graphite2-devel \
 	libpng-devel \
+        texlive-collection-latex \
+        texlive-collection-xetex \
+        texlive-collection-luatex \
+        texlive-tablefootnote \
+        texlive-mdwtools \
+        python3-pip \
+        fontconfig \
+        librsvg2 \
 	zlib-devel \
-	pkgconf-pkg-config \
-        gcc-c++ \
-&& dnf clean all
-
-RUN adduser pandoc && \
-	chmod -R 755 ~pandoc
-
-RUN cargo install tectonic && \ 
-    cp -rf /root/.cargo/bin/tectonic /usr/local/bin/ && \
-    chown pandoc:pandoc /usr/local/bin/tectonic
-
-RUN printf '#!/bin/bash\n\nset -eux\n\n/bin/tree .\n/usr/bin/pandoc \"$@\"' > /entrypoint.sh && \
-        chmod +x /entrypoint.sh
+        wget \
+	pkgconf-pkg-config
 
 COPY Dockerfile.fedora /Dockerfile.fedora
+
+
+RUN adduser pandoc --home=/home/pandoc && \
+        chmod -R 755 /home/pandoc
+
+RUN echo "Install node" \
+    && sudo dnf install -y nodejs 
+
+RUN echo "Installing url2cite" \
+    && npm install -g pandoc-url2cite@0.6.5 \
+    && dnf clean all
+
 WORKDIR /data
 
+RUN echo "Install pandoc latex environment" \
+    && pip3 install --upgrade pip \
+    && pip3 install pandoc-latex-environment \
+    && touch /entrypoint.sh \
+    && mkdir -p /usr/share/fonts/truetype \
+    && chown pandoc:pandoc /entrypoint.sh /usr/share/fonts/truetype
+
+RUN echo "installing pandoc version 2.10.1" \
+    && wget https://github.com/jgm/pandoc/releases/download/2.10.1/pandoc-2.10.1-linux-amd64.tar.gz \
+    && tar xzf pandoc-2.10.1-linux-amd64.tar.gz --strip-components 1 -C /usr/local/ \
+    && rm -rf pandoc-2.10.1-linux-amd64.tar.gz
+
 USER pandoc:pandoc
-ENV PATH="~pandoc/.cargo/bin:${PATH}"
 
-# Running tectonic once to cache needed files that get downloaded at first run
-COPY ./eisvogel.latex .
-COPY ./prime-cache.tex .
-RUN /usr/local/bin/tectonic prime-cache.tex &  /usr/local/bin/tectonic eisvogel.latex || true
+RUN  echo '#!/bin/bash' >/entrypoint.sh \
+     && echo 'set -eux' >>/entrypoint.sh \
+     && echo 'ln -s /Assets/ttf /usr/share/fonts/truetype' >>/entrypoint.sh \
+     && echo 'fc-cache -f' >>/entrypoint.sh \
+     && echo 'tree /data' >>/entrypoint.sh \
+     && echo '/usr/local/bin/pandoc \
+              -s --pdf-engine xelatex \
+              --template /Assets/LaTeX/eisvogel \
+              --listings -M date="`date "+%d %B %Y"`" \
+              --filter=pandoc-url2cite \
+              --filter=pandoc-citeproc \
+              --filter=pandoc-latex-environment \
+              -o ${DOCNAME}.pdf ${DOCNAME}.md' >>/entrypoint.sh \
+    && chmod +x /entrypoint.sh
 
-ENTRYPOINT [ "/entrypoint.sh" ]
-CMD [ "-v" ]
+
+ENTRYPOINT [ "/entrypoint.sh", "$@" ]
+CMD [ "--help" ]
