@@ -1,5 +1,8 @@
 FROM fedora:32
 
+LABEL maintainer="James Anderton <janderton@hashicorp.com>"
+LABEL description="A docker container image with Pandoc, Xelatex, and pandoc-url2cite plugin"
+
 RUN dnf makecache
 
 RUN dnf install -y tree \
