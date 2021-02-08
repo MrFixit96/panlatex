@@ -57,6 +57,8 @@ jobs:
         with:
           # The branch to use for stable releases in production. Default is master
           production-branch: main
+          test-branch: test  
+          dev-branch: develop
     
       - name: Log into registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
